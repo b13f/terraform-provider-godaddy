@@ -234,7 +234,9 @@ func resourceDomainRecordRead(_ context.Context, d *schema.ResourceData, meta in
 	}
 
 	log.Println("Fetching", domain, "records...")
-	records, err := client.GetDomainRecords(customer, domain)
+	overwrite := d.Get(attrOverwrite).(bool)
+	records, err := client.GetDomainRecords(customer, domain, overwrite)
+
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("couldn't find domain record (%s): %s", domain, err.Error()))
 	}

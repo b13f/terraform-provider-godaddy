@@ -54,10 +54,13 @@ func (c *Client) GetDomain(customerID, domain string) (*Domain, error) {
 }
 
 // GetDomainRecords fetches all existing records for the provided domain
-func (c *Client) GetDomainRecords(customerID, domain string) ([]*DomainRecord, error) {
+func (c *Client) GetDomainRecords(customerID, domain string, overwrite bool) ([]*DomainRecord, error) {
 	offset := 1
 	records := make([]*DomainRecord, 0)
 	for {
+		if !overwrite {
+			break
+		}
 		page := make([]*DomainRecord, 0)
 		domainURL := fmt.Sprintf(pathDomainRecords, c.baseURL, domain, defaultLimit, offset)
 		req, err := http.NewRequest(http.MethodGet, domainURL, nil)

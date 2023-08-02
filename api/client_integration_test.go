@@ -78,7 +78,7 @@ func TestPatchRecords(t *testing.T) {
 }
 
 func getRecords(t *testing.T, client *Client, domain string) ([]*DomainRecord, error) {
-	records, err := client.GetDomainRecords("", domain)
+	records, err := client.GetDomainRecords("", domain, true)
 	assert.Nil(t, err)
 	assert.NotNil(t, records)
 

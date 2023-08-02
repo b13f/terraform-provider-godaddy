@@ -268,8 +268,13 @@ func resourceDomainRecordCreate(ctx context.Context, d *schema.ResourceData, met
 	r.converge()
 	overwrite := d.Get(attrOverwrite).(bool)
 	if overwrite {
+		log.Println("Overwrite is enabled! DNS Records marked for deletion WILL BE DELETED.")
+		log.Println("Please be sure that every DNS record you need is added below.")
+		log.Println("Backup DNS records by exporting a zone file from the GoDaddy DNS Management panel.")
 		err = client.ReplaceDomainRecords(r.Customer, r.Domain, r.Records)
 	} else {
+		log.Println("Overwrite is disabled. Don't fret! DNS Records marked for deletion will NOT be deleted.")
+		log.Println("Records will only be added. This is a quirk of the GoDaddy Provider.")
 		err = client.AddDomainRecords(r.Customer, r.Domain, r.Records)
 	}
 
@@ -298,8 +303,13 @@ func resourceDomainRecordUpdate(ctx context.Context, d *schema.ResourceData, met
 
 	overwrite := d.Get(attrOverwrite).(bool)
 	if overwrite {
+		log.Println("Overwrite is enabled! DNS Records marked for deletion WILL BE DELETED.")
+		log.Println("Please be sure that every DNS record you need is added below.")
+		log.Println("Backup DNS records by exporting a zone file from the GoDaddy DNS Management panel.")
 		err = client.ReplaceDomainRecords(r.Customer, r.Domain, r.Records)
 	} else {
+		log.Println("Overwrite is disabled. Don't fret! DNS Records marked for deletion will NOT be deleted.")
+		log.Println("Records will only be added. This is a quirk of the GoDaddy Provider.")
 		err = client.UpdateDomainRecords(r.Customer, r.Domain, r.Records)
 	}
 
@@ -325,8 +335,13 @@ func resourceDomainRecordRestore(ctx context.Context, d *schema.ResourceData, me
 
 	overwrite := d.Get(attrOverwrite).(bool)
 	if overwrite {
+		log.Println("Overwrite is enabled! DNS Records marked for deletion WILL BE DELETED.")
+		log.Println("Please be sure that every DNS record you need is added below.")
+		log.Println("Backup DNS records by exporting a zone file from the GoDaddy DNS Management panel.")
 		err = client.ReplaceDomainRecords(r.Customer, r.Domain, r.Records)
 	} else {
+		log.Println("Overwrite is disabled. Don't fret! DNS Records marked for deletion will NOT be deleted.")
+		log.Println("Records will only be added. This is a quirk of the GoDaddy Provider.")
 		err = client.AddDomainRecords(r.Customer, r.Domain, r.Records)
 	}
 

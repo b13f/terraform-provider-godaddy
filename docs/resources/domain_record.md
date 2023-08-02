@@ -24,7 +24,7 @@ description: |-
 - `addresses` (List of String)
 - `customer` (String) Customer ID (required if you are a reseller managing a domain purchased outside the scope of your reseller account).
 - `nameservers` (List of String)
-- `overwrite` (Boolean)
+- `overwrite` (Boolean) Overwrite existing DNS records for the domain or, if disabled, simply add new DNS records without deleting.
 - `record` (Block Set) (see [below for nested schema](#nestedblock--record))
 
 ### Read-Only

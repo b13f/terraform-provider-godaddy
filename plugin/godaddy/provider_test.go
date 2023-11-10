@@ -27,6 +27,7 @@ func TestProvider(t *testing.T) {
 func testAccPreCheck(t *testing.T) {
 	verifyEnvExists(t, "GODADDY_API_KEY")
 	verifyEnvExists(t, "GODADDY_API_SECRET")
+//	verifyEnvExists(t, "GODADDY_API_CUSTOMER_ID")
 	verifyEnvExists(t, "GODADDY_DOMAIN")
 }
 

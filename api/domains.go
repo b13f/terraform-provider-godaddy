@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
@@ -17,6 +18,10 @@ const (
 	pathDomainRecordsUpdate = "%s/v1/domains/%s/records/%s/%s"
 	pathDomainRecordsByType = "%s/v1/domains/%s/records/%s"
 	pathDomains             = "%s/v1/domains/%s"
+
+	//to use v2 api
+	shoppers               = "%s/v1/shoppers/%s?includes=customerId"
+	pathDomainsNameServers = "%s/v2/customers/%s/domains/%s/nameServers"
 )
 
 // GetDomains fetches the details for the provided domain
@@ -46,21 +51,55 @@ func (c *Client) GetDomain(customerID, domain string) (*Domain, error) {
 	}
 
 	d := new(Domain)
-	if err := c.execute(customerID, req, &d); err != nil {
-		return nil, err
+	for {
+		if err := c.execute(customerID, req, &d); err != nil {
+			return nil, err
+		}
+
+		if !strings.Contains(d.Status, "PENDING") {
+			break
+		}
+
+		time.Sleep(3 * time.Second)
 	}
 
 	return d, nil
 }
 
+// UpdateNSDomain ...
+func (c *Client) UpdateNSDomain(ns []string, customerID, domain string) error {
+	t := &struct {
+		NameServers []string `json:"nameServers"`
+	}{
+		NameServers: ns,
+	}
+
+	msg, err := json.Marshal(t)
+	if err != nil {
+		return err
+	}
+
+	buffer := bytes.NewBuffer(msg)
+
+	domainURL := fmt.Sprintf(pathDomains, c.baseURL, domain)
+	req, err := http.NewRequest(http.MethodPatch, domainURL, buffer)
+
+	if err != nil {
+		return err
+	}
+
+	if err = c.execute(customerID, req, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetDomainRecords fetches all existing records for the provided domain
-func (c *Client) GetDomainRecords(customerID, domain string, overwrite bool) ([]*DomainRecord, error) {
+func (c *Client) GetDomainRecords(customerID, domain string) ([]*DomainRecord, error) {
 	offset := 1
 	records := make([]*DomainRecord, 0)
 	for {
-		if !overwrite {
-			break
-		}
 		page := make([]*DomainRecord, 0)
 		domainURL := fmt.Sprintf(pathDomainRecords, c.baseURL, domain, defaultLimit, offset)
 		req, err := http.NewRequest(http.MethodGet, domainURL, nil)
@@ -180,6 +219,103 @@ func (c *Client) UpdateDomainRecords(customerID, domain string, records []*Domai
 
 	return nil
 }
+
+// // GetDomainRecords fetches all existing records for the provided domain
+// func (c *Client) GetShoppers(customerID string) (string, error) {
+
+// 	page := make([]*DomainRecord, 0)
+// 	domainURL := fmt.Sprintf(shoppers, c.baseURL, c.customerID)
+// 	req, err := http.NewRequest(http.MethodGet, domainURL, nil)
+
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	if err := c.execute(customerID, req, &page); err != nil {
+// 		return "", err
+// 	}
+
+// 	return "", nil
+// }
+
+// func (c *Client) GetPoll(domain string) (string, error) {
+
+// 	page := make([]*DomainRecord, 0)
+// 	domainURL := fmt.Sprintf("%s/v2/customers/%s/domains/%s/actions", c.baseURL, "01804e6f-6562-4304-be20-6563ee6d7573", domain)
+// 	req, err := http.NewRequest(http.MethodGet, domainURL, nil)
+
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	//req.Header.Set("x-shopper-id", "467624111")
+
+// 	if err := c.execute("467624111", req, &page); err != nil {
+// 		return "", err
+// 	}
+
+// 	return "", nil
+// }
+
+// // AddNSRecords adds NS records
+// func (c *Client) UpdateDomainInfo(domain string, ns []string) error {
+// 	t := &struct {
+// 		NameServers []string `json:"nameServers"`
+// 	}{
+// 		NameServers: ns,
+// 	}
+
+// 	msg, err := json.Marshal(t)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	buffer := bytes.NewBuffer(msg)
+// 	domainURL := fmt.Sprintf(pathDomainsNameServers, c.baseURL, "01804e6f-6562-4304-be20-6563ee6d7573" /*c.customerID*/, domain)
+
+// 	// set method to patch to only add records
+// 	// for more info check: https://developer.godaddy.com/doc/endpoint/domains#/v1/recordAdd
+// 	req, err := http.NewRequest(http.MethodPut, domainURL, buffer)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	req.Header.Set("domain", domain)
+// 	if err = c.execute(c.customerID, req, nil); err != nil {
+// 		return err
+// 	}
+
+// 	return err
+// }
+
+// // AddNSRecords adds NS records
+// func (c *Client) AddNSRecords(domain string, records []string) error {
+// 	t := &struct {
+// 		NameServers []string `json:nameServers`
+// 	}{
+// 		NameServers: records,
+// 	}
+
+// 	msg, err := json.Marshal(t)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	buffer := bytes.NewBuffer(msg)
+// 	domainURL := fmt.Sprintf(pathDomainsNameServers, c.baseURL, c.customerID, domain)
+// 	log.Println(domainURL)
+// 	log.Println(buffer)
+
+// 	// set method to patch to only add records
+// 	// for more info check: https://developer.godaddy.com/doc/endpoint/domains#/v1/recordAdd
+// 	_, err = http.NewRequest(http.MethodPut, domainURL, buffer)
+
+// 	// if err := c.execute(customerID, req, nil); err != nil {
+// 	// 	return err
+// 	// }
+
+// 	return err
+// }
 
 func (c *Client) domainRecordsOfType(t string, records []*DomainRecord) []*DomainRecord {
 	typeRecords := make([]*DomainRecord, 0)

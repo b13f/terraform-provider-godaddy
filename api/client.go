@@ -25,10 +25,11 @@ const (
 
 // Client is a GoDaddy API client
 type Client struct {
-	baseURL string
-	key     string
-	secret  string
-	client  *http.Client
+	baseURL    string
+	key        string
+	secret     string
+//	customerID string
+	client     *http.Client
 }
 
 // rateLimitedTransport throttles API calls to GoDaddy. It appears that
@@ -69,9 +70,10 @@ func NewClient(baseURL, key, secret string) (*Client, error) {
 	}
 
 	return &Client{
-		baseURL: baseURL,
-		key:     strings.TrimSpace(key),
-		secret:  strings.TrimSpace(secret),
+		baseURL:    baseURL,
+		key:        strings.TrimSpace(key),
+		secret:     strings.TrimSpace(secret),
+//		customerID: strings.TrimSpace(customerID),
 		client: &http.Client{
 			Timeout: time.Second * 30,
 			Transport: &rateLimitedTransport{
@@ -104,7 +106,7 @@ func (c *Client) execute(customerID string, req *http.Request, result interface{
 
 	buffer := new(bytes.Buffer)
 	body, err := io.ReadAll(io.TeeReader(resp.Body, buffer))
-	log.Printf("%s %s", resp.Status, buffer)
+	log.Printf("request \n %s %s", resp.Status, buffer)
 	if err != nil {
 		return err
 	}

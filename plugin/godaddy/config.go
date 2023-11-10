@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/n3integration/terraform-provider-godaddy/api"
+	"github.com/b13f/terraform-provider-godaddy/api"
 )
 
 // Config provides the provider's configuration
 type Config struct {
-	Key     string
-	Secret  string
+	Key    string
+	Secret string
+	//	CustomerID string
 	BaseURL string
 }
 

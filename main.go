@@ -2,8 +2,8 @@
 package main
 
 import (
+	"github.com/b13f/terraform-provider-godaddy/plugin/godaddy"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-	"github.com/n3integration/terraform-provider-godaddy/plugin/godaddy"
 )
 
 // Generate the Terraform provider documentation using `tfplugindocs`:

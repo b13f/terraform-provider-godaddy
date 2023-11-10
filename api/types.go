@@ -92,9 +92,10 @@ var supportedTypes = map[string]struct{}{
 
 // Domain encapsulates a domain resource
 type Domain struct {
-	ID     int64  `json:"domainId"`
-	Name   string `json:"domain"`
-	Status string `json:"status"`
+	ID          int64    `json:"domainId"`
+	Name        string   `json:"domain"`
+	Status      string   `json:"status"`
+	NameServers []string `json:"nameServers"`
 }
 
 // DomainRecord encapsulates a domain record resource
@@ -263,13 +264,13 @@ func IsDefaultARecord(record *DomainRecord) bool {
 }
 
 // IsDefaultNSRecord is a predicate to place fetched NS domain records into the appropriate bucket
-func IsDefaultNSRecord(record *DomainRecord) bool {
-	return record.Name == Ptr && record.Type == NSType && record.TTL == DefaultTTL
-}
+// func IsDefaultNSRecord(record *DomainRecord) bool {
+// 	return record.Name == Ptr && record.Type == NSType && record.TTL == DefaultTTL
+// }
 
 // IsDisallowed prevents empty NS|SOA record lists from being propagated, which is disallowed
 func IsDisallowed(t string, records []*DomainRecord) bool {
-	return len(records) == 0 && strings.EqualFold(t, NSType) || strings.EqualFold(t, SOAType) || strings.EqualFold(t, CAAType)
+	return len(records) == 0 && strings.EqualFold(t, SOAType) || strings.EqualFold(t, CAAType)
 }
 
 // IsSupportedType is a predicate used to filter supported domain types

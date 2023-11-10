@@ -5,20 +5,14 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 
+	"github.com/b13f/terraform-provider-godaddy/api"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/n3integration/terraform-provider-godaddy/api"
 )
 
 const (
-	attrCustomer    = "customer"
-	attrDomain      = "domain"
-	attrRecord      = "record"
-	attrAddresses   = "addresses"
-	attrNameservers = "nameservers"
-	attrOverwrite   = "overwrite"
+	attrRecord = "record"
 
 	recName     = "name"
 	recType     = "type"
@@ -32,32 +26,14 @@ const (
 )
 
 type domainRecordResource struct {
-	Customer         string
-	Domain           string
-	Records          []*api.DomainRecord
-	ARecords         []string
-	NSRecords        []string
-	ReplaceNSRecords bool
-}
-
-var defaultRecords = []*api.DomainRecord{
-	// CNAME Records
-	{Type: api.CNameType, Name: "www", Data: "@", TTL: api.DefaultTTL},
-	{Type: api.CNameType, Name: "_domainconnect", Data: "_domainconnect.gd.domaincontrol.com", TTL: api.DefaultTTL},
+	Customer string
+	Domain   string
+	Records  []*api.DomainRecord
 }
 
 func newDomainRecordResource(d *schema.ResourceData) (*domainRecordResource, error) {
 	var err error
 	r := &domainRecordResource{}
-	nsCount := 0
-
-	if attr, ok := d.GetOk(attrCustomer); ok {
-		r.Customer = attr.(string)
-	}
-
-	if attr, ok := d.GetOk(attrDomain); ok {
-		r.Domain = attr.(string)
-	}
 
 	if attr, ok := d.GetOk(attrRecord); ok {
 		records := attr.(*schema.Set).List()
@@ -66,9 +42,9 @@ func newDomainRecordResource(d *schema.ResourceData) (*domainRecordResource, err
 		for i, rec := range records {
 			data := rec.(map[string]interface{})
 			t := data[recType].(string)
-			if strings.EqualFold(t, api.NSType) {
-				nsCount++
-			}
+			// if strings.EqualFold(t, api.NSType) {
+			// 	nsCount++
+			// }
 			r.Records[i], err = api.NewDomainRecord(
 				data[recName].(string),
 				t,
@@ -86,39 +62,7 @@ func newDomainRecordResource(d *schema.ResourceData) (*domainRecordResource, err
 		}
 	}
 
-	if attr, ok := d.GetOk(attrNameservers); ok {
-		records := attr.([]interface{})
-		nsCount += len(records)
-		r.NSRecords = make([]string, len(records))
-		for i, rec := range records {
-			if err = api.ValidateData(api.NSType, rec.(string)); err != nil {
-				return r, err
-			}
-			r.NSRecords[i] = rec.(string)
-		}
-	}
-
-	if attr, ok := d.GetOk(attrAddresses); ok {
-		records := attr.([]interface{})
-		r.ARecords = make([]string, len(records))
-		for i, rec := range records {
-			if err = api.ValidateData(api.AType, rec.(string)); err != nil {
-				return r, err
-			}
-			r.ARecords[i] = rec.(string)
-		}
-	}
-
-	if nsCount > 0 {
-		r.ReplaceNSRecords = true
-	}
-
 	return r, err
-}
-
-func (r *domainRecordResource) converge() {
-	r.mergeRecords(r.ARecords, api.NewARecord)
-	r.mergeRecords(r.NSRecords, api.NewNSRecord)
 }
 
 func (r *domainRecordResource) mergeRecords(list []string, factory api.RecordFactory) {
@@ -139,30 +83,6 @@ func resourceDomainRecord() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
-			// Required
-			attrDomain: {
-				Type:     schema.TypeString,
-				Required: true,
-			},
-			// Optional
-			attrAddresses: {
-				Type:     schema.TypeList,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
-			attrCustomer: {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			attrNameservers: {
-				Type:     schema.TypeList,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
-			attrOverwrite: {
-				Type:     schema.TypeBool,
-				Optional: true,
-			},
 			attrRecord: {
 				Type:     schema.TypeSet,
 				Optional: true,
@@ -217,7 +137,7 @@ func resourceDomainRecord() *schema.Resource {
 
 func resourceDomainRecordRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*api.Client)
-	customer := d.Get(attrCustomer).(string)
+	customer := d.Get(zattrCustomer).(string)
 	domain := d.Get(attrDomain).(string)
 	// Warning or errors can be collected in a slice type
 	var diags diag.Diagnostics
@@ -234,14 +154,12 @@ func resourceDomainRecordRead(_ context.Context, d *schema.ResourceData, meta in
 	}
 
 	log.Println("Fetching", domain, "records...")
-	overwrite := d.Get(attrOverwrite).(bool)
-	records, err := client.GetDomainRecords(customer, domain, overwrite)
+	records, err := client.GetDomainRecords(customer, domain)
 
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("couldn't find domain record (%s): %s", domain, err.Error()))
 	}
 
-	r.converge()
 	if err := populateResourceDataFromResponse(records, r, d); err != nil {
 		return diag.FromErr(err)
 	}
@@ -267,18 +185,8 @@ func resourceDomainRecordCreate(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	log.Println("Creating", r.Domain, "domain records...")
-	r.converge()
-	overwrite := d.Get(attrOverwrite).(bool)
-	if overwrite {
-		log.Println("Overwrite is enabled! DNS Records marked for deletion WILL BE DELETED.")
-		log.Println("Please be sure that every DNS record you need is added below.")
-		log.Println("Backup DNS records by exporting a zone file from the GoDaddy DNS Management panel.")
-		err = client.ReplaceDomainRecords(r.Customer, r.Domain, r.Records)
-	} else {
-		log.Println("Overwrite is disabled. Don't fret! DNS Records marked for deletion will NOT be deleted.")
-		log.Println("Records will only be added. This is a quirk of the GoDaddy Provider.")
-		err = client.AddDomainRecords(r.Customer, r.Domain, r.Records)
-	}
+
+	err = client.ReplaceDomainRecords(r.Customer, r.Domain, r.Records)
 
 	if err != nil {
 		return diag.FromErr(err)
@@ -301,19 +209,8 @@ func resourceDomainRecordUpdate(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	log.Println("Updating", r.Domain, "domain records...")
-	r.converge()
 
-	overwrite := d.Get(attrOverwrite).(bool)
-	if overwrite {
-		log.Println("Overwrite is enabled! DNS Records marked for deletion WILL BE DELETED.")
-		log.Println("Please be sure that every DNS record you need is added below.")
-		log.Println("Backup DNS records by exporting a zone file from the GoDaddy DNS Management panel.")
-		err = client.ReplaceDomainRecords(r.Customer, r.Domain, r.Records)
-	} else {
-		log.Println("Overwrite is disabled. Don't fret! DNS Records marked for deletion will NOT be deleted.")
-		log.Println("Records will only be added. This is a quirk of the GoDaddy Provider.")
-		err = client.UpdateDomainRecords(r.Customer, r.Domain, r.Records)
-	}
+	err = client.ReplaceDomainRecords(r.Customer, r.Domain, r.Records)
 
 	if err != nil {
 		return diag.FromErr(err)
@@ -334,18 +231,7 @@ func resourceDomainRecordRestore(ctx context.Context, d *schema.ResourceData, me
 	}
 
 	log.Println("Restoring", r.Domain, "domain records...")
-
-	overwrite := d.Get(attrOverwrite).(bool)
-	if overwrite {
-		log.Println("Overwrite is enabled! DNS Records marked for deletion WILL BE DELETED.")
-		log.Println("Please be sure that every DNS record you need is added below.")
-		log.Println("Backup DNS records by exporting a zone file from the GoDaddy DNS Management panel.")
-		err = client.ReplaceDomainRecords(r.Customer, r.Domain, r.Records)
-	} else {
-		log.Println("Overwrite is disabled. Don't fret! DNS Records marked for deletion will NOT be deleted.")
-		log.Println("Records will only be added. This is a quirk of the GoDaddy Provider.")
-		err = client.AddDomainRecords(r.Customer, r.Domain, r.Records)
-	}
+	err = client.AddDomainRecords(r.Customer, r.Domain, r.Records)
 
 	if err != nil {
 		return diag.FromErr(err)
@@ -366,33 +252,24 @@ func populateDomainInfo(client *api.Client, r *domainRecordResource, d *schema.R
 	}
 
 	d.SetId(strconv.FormatInt(domain.ID, 10))
+
 	return nil
 }
 
 func populateResourceDataFromResponse(recs []*api.DomainRecord, r *domainRecordResource, d *schema.ResourceData) error {
 	aRecords := make([]string, 0)
-	nsRecords := make([]string, 0)
+	//nsRecords := make([]string, 0)
 	domain := d.Get(attrDomain).(string)
 	records := make([]*api.DomainRecord, 0)
 
 	for _, rec := range recs {
 		switch {
-		case api.IsDefaultNSRecord(rec):
-			nsRecords = append(nsRecords, rec.Data)
+		// case api.IsDefaultNSRecord(rec):
+		// 	nsRecords = append(nsRecords, rec.Data)
 		case api.IsDefaultARecord(rec):
 			aRecords = append(aRecords, rec.Data)
 		default:
 			records = append(records, rec)
-		}
-	}
-
-	if err := d.Set(attrAddresses, aRecords); err != nil {
-		return err
-	}
-
-	if r.ReplaceNSRecords || domain == "" {
-		if err := d.Set(attrNameservers, nsRecords); err != nil {
-			return err
 		}
 	}
 

@@ -21,7 +21,12 @@ func Provider() *schema.Provider {
 				DefaultFunc: schema.EnvDefaultFunc("GODADDY_API_SECRET", nil),
 				Description: "GoDaddy API Secret.",
 			},
-
+			// "customerid": {
+			// 	Type:        schema.TypeString,
+			// 	Required:    true,
+			// 	DefaultFunc: schema.EnvDefaultFunc("GODADDY_API_CUSTOMER_ID", nil),
+			// 	Description: "GoDaddy Customer ID.",
+			// },
 			"baseurl": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -31,6 +36,7 @@ func Provider() *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"godaddy_domain_zone": resourceDomainZone(),
 			"godaddy_domain_record": resourceDomainRecord(),
 		},
 
@@ -42,6 +48,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	config := Config{
 		Key:     d.Get("key").(string),
 		Secret:  d.Get("secret").(string),
+//		CustomerID:  d.Get("customerid").(string),
 		BaseURL: d.Get("baseurl").(string),
 	}
 
